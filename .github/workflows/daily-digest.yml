@@ -1,0 +1,23 @@
+name: Daily Research Digest
+on:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Run digest
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          VECTOR_BACKEND: faiss
+          INDEX_DIR: ./indexes
+          TOPICS: "AI in healthcare, LLM safety, EV batteries"
+        run: python scripts/run_digest_now.py

@@ -1,0 +1,12 @@
+topics:
+  - "AI in healthcare"
+  - "LLM safety"
+  - "EV batteries"
+top_k: 8
+chunk_size: 1000
+chunk_overlap: 150
+vector_backend: "${VECTOR_BACKEND}"
+index_dir: "${INDEX_DIR}"
+model:
+  text: "gemini-1.5-flash"
+  embedding: "models/text-embedding-004"
