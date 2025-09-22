@@ -1,15 +1,21 @@
+import sys
+import os
+
+# Add the project root directory to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
+# Now import all required modules
 from fastapi import FastAPI, Query
 from fastapi.responses import HTMLResponse
 from typing import List, Dict, Optional
 from urllib.parse import urlparse, urlencode
 from email.utils import parsedate_to_datetime
-import os, json, re, html
+import json, re, html
 from datetime import datetime
-from src.vectorstores import orchestrator
 
-
-from ..agents.retrieval_agent import retrieve
-from ..orchestrator import run_digest
+from src.orchestrator import run_digest
+from src.agents.retrieval_agent import retrieve
+from src.agents.analysis_agent import summarize
 from pydantic import BaseModel
 from typing import List
 
@@ -85,7 +91,11 @@ def health():
 
 @app.get("/search", response_model=SearchResponse)
 async def search_endpoint(query: str):
-    raw_result = search(query)
+    # Retrieve docs related to query
+    docs = retrieve(query, k=5)
+
+    # Summarize them into readable text
+    raw_result = summarize(query, docs)
 
     key_points = [line.strip() for line in raw_result.split(". ") if line]
 
@@ -94,6 +104,7 @@ async def search_endpoint(query: str):
         key_points=key_points[:5],
         recommendations="This article may be useful for your research."
     )
+
 
 
 
