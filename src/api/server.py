@@ -14,15 +14,7 @@ import json, re, html
 from datetime import datetime
 
 from src.orchestrator import run_digest
-from src.agents.retrieval_agent import retrieve
-from src.agents.analysis_agent import summarize
 from pydantic import BaseModel
-from typing import List
-
-class SearchResponse(BaseModel):
-    summary: str
-    key_points: List[str]
-    recommendations: str
 
 
 app = FastAPI(title="Autonomous Research Assistant API")
@@ -89,21 +81,6 @@ def _page_link(base: str, **params) -> str:
 def health():
     return {"ok": True}
 
-@app.get("/search", response_model=SearchResponse)
-async def search_endpoint(query: str):
-    # Retrieve docs related to query
-    docs = retrieve(query, k=5)
-
-    # Summarize them into readable text
-    raw_result = summarize(query, docs)
-
-    key_points = [line.strip() for line in raw_result.split(". ") if line]
-
-    return SearchResponse(
-        summary=raw_result[:200] + "...",
-        key_points=key_points[:5],
-        recommendations="This article may be useful for your research."
-    )
 
 
 

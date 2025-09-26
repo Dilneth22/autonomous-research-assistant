@@ -1,67 +1,40 @@
 import sys
 import os
+import streamlit as st
 
 # Add the project root directory to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-# Now import the required modules
-import streamlit as st
-from src.orchestrator import run_digest, process_single_url
-from src.config import load_settings
+from src.graph.builder import build_graph
 
-st.set_page_config(page_title="Autonomous Research Assistant", layout="wide")
+st.set_page_config(page_title="Autonomous Research Agent", layout="wide")
+st.title("Autonomous Research Agent 🤖")
 
-st.title("Autonomous Research Assistant 🤖")
-
-# --- Section for Adding New URLs ---
-st.header("Add New Sources")
-
-# CHANGED: Use a text area for multiple URLs
-url_input = st.text_area(
-    "Enter URLs to add (one per line):",
-    placeholder="https://example.com/article-1\nhttps://example.com/article-2",
-    height=150
+# --- Autonomous Research Section ---
+st.header("Perform Autonomous Research")
+topic_input = st.text_input(
+    "Enter a topic to research:",
+    placeholder="The impact of AI on the future of work"
 )
 
-if st.button("Process URLs", key="process_urls"):
-    # CHANGED: Split the input into a list of URLs and filter out empty lines
-    urls = [url.strip() for url in url_input.splitlines() if url.strip()]
-    
-    if urls:
-        st.info(f"Found {len(urls)} URLs to process. Starting...")
-        # CHANGED: Loop through each URL and process it
-        for url in urls:
-            try:
-                with st.spinner(f"Processing: {url}..."):
-                    result_message = process_single_url(url)
-                st.success(result_message, icon="✅")
-            except Exception as e:
-                st.error(f"Failed to process {url}: {e}", icon="❌")
-        st.success("All URLs have been processed!")
-    else:
-        st.warning("Please enter at least one URL.")
-
-st.markdown("---")
-
-# --- Section for Creating Research Digest ---
-st.header("Create a Research Digest")
-settings = load_settings()
-default_topics = ", ".join(settings.topics)
-
-topic_input = st.text_area(
-    "Enter topics to research (comma-separated):",
-    value=default_topics,
-    height=100
-)
-
-if st.button("Generate Digest", key="generate_digest"):
+if st.button("Start Research", key="start_research"):
     if topic_input:
-        topics = [topic.strip() for topic in topic_input.split(',')]
-        with st.spinner("Generating your research digest... This may take a moment."):
-            try:
-                digest_output = run_digest(topics)
-                st.markdown(digest_output)
-            except Exception as e:
-                st.error(f"An error occurred while generating the digest: {e}")
+        app = build_graph()
+        inputs = {"topic": topic_input}
+        
+        with st.spinner("The research agent is working... This may take a few minutes."):
+            final_report = ""
+            # Stream the results to find the final report
+            for output in app.stream(inputs, stream_mode="values"):
+                if "report" in output and output["report"]:
+                    final_report = output["report"]
+            
+            # Display the final report once the stream is complete
+            if final_report:
+                st.markdown("---")
+                st.header("Research Report")
+                st.markdown(final_report)
+            else:
+                st.error("The agent could not generate a report. Please try again.")
     else:
-        st.warning("Please enter at least one topic.")
+        st.warning("Please enter a research topic.")
