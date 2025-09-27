@@ -20,3 +20,27 @@ streamlit
 slack-sdk
 lxml_html_clean
 
+
+langgraph
+langchain
+langchain-google-genai
+tavily-python
+
+
+google-generativeai
+python-dotenv
+PyYAML
+pydantic
+tenacity
+requests
+feedparser
+newspaper3k
+beautifulsoup4
+tqdm
+faiss-cpu
+lancedb
+fastapi
+uvicorn
+streamlit
+slack-sdk
+lxml_html_clean
