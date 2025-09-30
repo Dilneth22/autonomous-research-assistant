@@ -1,28 +1,30 @@
 import os
+import time
 import google.generativeai as genai
 from dotenv import load_dotenv
 from src.state import ResearchState
 from src.tools import tavily_search, scrape_webpage
 
-# ADD THIS BLOCK: Load environment variables and configure the API key
+# Load environment variables from .env file
 load_dotenv()
-try:
-    genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-except Exception as e:
-    print(f"Error configuring Google AI: {e}")
 
-# Configure your Gemini model
+# --- Configure the Google API Key ---
 try:
+    GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+    if not GOOGLE_API_KEY:
+        raise ValueError("GOOGLE_API_KEY not found in .env file")
+    genai.configure(api_key=GOOGLE_API_KEY)
     model = genai.GenerativeModel("gemini-1.5-flash-latest")
 except Exception as e:
-    print(f"Error initializing Gemini model: {e}")
+    print(f"Error configuring Google Gemini: {e}")
     model = None
 
 def plan_queries(state: ResearchState) -> ResearchState:
     """Generates a list of search queries based on the research topic."""
     if not model:
-        raise ConnectionError("Gemini model is not initialized. Check API key.")
-    print("---PLANNING QU-ERIES---")
+        raise ConnectionError("Google Gemini model is not configured. Please check your API key.")
+    
+    print("---PLANNING QUERIES---")
     topic = state["topic"]
     prompt = f"""You are a world-class research assistant.
     Based on the topic "{topic}", generate a list of 3-5 concise, targeted search queries that will yield the best information.
@@ -35,7 +37,8 @@ def plan_queries(state: ResearchState) -> ResearchState:
 def search_web(state: ResearchState) -> ResearchState:
     """Performs web searches for the given queries and returns a list of URLs."""
     if not tavily_search:
-        raise ConnectionError("Tavily search tool is not initialized. Check API key.")
+        raise ConnectionError("Tavily Search Tool is not configured. Please check your API key.")
+
     print("---SEARCHING WEB---")
     queries = state["queries"]
     all_urls = []
@@ -58,30 +61,56 @@ def scrape_and_process(state: ResearchState) -> ResearchState:
             all_documents.append(document_data)
     return {"documents": all_documents}
 
-def synthesize_report(state: ResearchState) -> ResearchState:
-    """Synthesizes the final research report from the gathered documents with citations."""
+def summarize_documents_individually(state: ResearchState) -> ResearchState:
+    """Summarizes each scraped document one by one."""
     if not model:
-        raise ConnectionError("Gemini model is not initialized. Check API key.")
-    print("---SYNTHESIZING REPORT---")
+        raise ConnectionError("Google Gemini model is not configured. Please check your API key.")
+
+    print("---SUMMARIZING INDIVIDUAL DOCUMENTS---")
+    summaries = []
+    for doc in state["documents"]:
+        prompt = f"""Based on the following document, please provide a concise but comprehensive summary.
+        
+        Document Content:
+        {doc['content']}
+        """
+        try:
+            response = model.generate_content(prompt)
+            summaries.append({"url": doc["url"], "summary": response.text})
+            # Wait for a second to respect rate limits
+            time.sleep(1) 
+        except Exception as e:
+            print(f"Error summarizing document {doc['url']}: {e}")
+            continue
+            
+    return {"individual_summaries": summaries}
+
+def synthesize_report(state: ResearchState) -> ResearchState:
+    """Synthesizes the final research report from the individual summaries."""
+    if not model:
+        raise ConnectionError("Google Gemini model is not configured. Please check your API key.")
+        
+    print("---SYNTHESIZING FINAL REPORT---")
     topic = state["topic"]
     
-    document_context = ""
-    for i, doc in enumerate(state["documents"]):
-        document_context += f"Source [{i+1}] ({doc['url']}):\n{doc['content']}\n\n---\n\n"
+    summary_context = ""
+    for i, summary_data in enumerate(state["individual_summaries"]):
+        summary_context += f"Source [{i+1}] ({summary_data['url']}):\n{summary_data['summary']}\n\n---\n\n"
 
     prompt = f"""
     You are a world-class research analyst. Your task is to produce a high-quality, in-depth research report on the topic: "{topic}".
-    The report must be based *exclusively* on the provided source documents.
+    The report must be based *exclusively* on the provided source summaries.
 
     INSTRUCTIONS:
     1.  **Structure the Report:** Organize the report into logical sections with clear, descriptive headings (e.g., Introduction, Key Findings, Market Impact, Conclusion).
-    2.  **Be Comprehensive:** Synthesize information from all relevant sources to provide a deep and detailed analysis.
-    3.  **Provide Inline Citations:** For every piece of information, you MUST cite the source using the format [number] (e.g., [1], [2]).
-    4.  **Create a References Section:** At the end of the report, create a "References" section listing all source URLs in a numbered list corresponding to the citation numbers.
+    2.  **Be Comprehensive:** Synthesize information from all relevant summaries to provide a deep and detailed analysis.
+    3.  **Provide Inline Citations:** For every piece of information, you MUST cite the source using the format [number].
+    4.  **Do Not Hallucinate:** Do not include any information not present in the provided summaries.
+    5.  **Create a References Section:** At the end of the report, create a "References" section listing all source URLs.
 
-    Here are the source documents:
+    Here are the source summaries:
     
-    {document_context}
+    {summary_context}
 
     Begin the research report now:
     """
