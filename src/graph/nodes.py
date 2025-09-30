@@ -14,7 +14,10 @@ try:
     if not GOOGLE_API_KEY:
         raise ValueError("GOOGLE_API_KEY not found in .env file")
     genai.configure(api_key=GOOGLE_API_KEY)
-    model = genai.GenerativeModel("gemini-1.5-flash-latest")
+    
+    # CHANGED: Use a model name confirmed to be available for your API key
+    model = genai.GenerativeModel("models/gemini-pro-latest")
+
 except Exception as e:
     print(f"Error configuring Google Gemini: {e}")
     model = None
@@ -62,7 +65,7 @@ def scrape_and_process(state: ResearchState) -> ResearchState:
     return {"documents": all_documents}
 
 def summarize_documents_individually(state: ResearchState) -> ResearchState:
-    """Summarizes each scraped document one by one."""
+    """Summarizes each scraped document one by one to avoid rate limits."""
     if not model:
         raise ConnectionError("Google Gemini model is not configured. Please check your API key.")
 
