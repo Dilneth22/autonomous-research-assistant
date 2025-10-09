@@ -62,7 +62,7 @@ def scrape_and_process(state: ResearchState) -> ResearchState:
         if not content.startswith("Error"):
             document_data = {"url": url, "content": content}
             all_documents.append(document_data)
-    return {"documents": alldocuments}
+    return {"documents": all_documents}
 
 def summarize_documents_individually(state: ResearchState) -> ResearchState:
     """Summarizes each scraped document one by one to avoid rate limits."""
