@@ -11,7 +11,7 @@ from src.graph.builder import build_graph
 st.set_page_config(page_title="Autonomous Research Agent", layout="wide")
 st.title("Autonomous Research Agent 🤖")
 
-# --- Autonomous Research Section ---
+# --- Autonomous Research Section ---and report
 st.header("Perform Autonomous Research")
 topic_input = st.text_input(
     "Enter a topic to research:",

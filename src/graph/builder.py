@@ -7,7 +7,7 @@ def build_graph():
     """Builds the LangGraph research agent."""
     workflow = StateGraph(ResearchState)
 
-    # Add all the agent nodes to the graph
+    # Add all the agent nodes to the graph 1
     workflow.add_node("planner", plan_queries)
     workflow.add_node("searcher", search_web)
     workflow.add_node("scraper", scrape_and_process)
