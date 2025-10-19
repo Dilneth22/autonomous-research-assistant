@@ -2,20 +2,19 @@ from typing import List, TypedDict, Dict
 
 class ResearchState(TypedDict):
     """
-    Represents the state of our research agent.
-
-    Attributes:
-        topic: The initial research topic.
-        queries: A list of search queries to be executed.
-        urls: A list of URLs found from the search.
-        documents: A list of processed documents scraped from the URLs.
-        individual_summaries: A list of summaries for each document.
-        report: The final, synthesized research report.
+    Represents the state of our research agent, now with RAG capabilities.
     """
+    # Core research state
     topic: str
     queries: List[str]
     urls: List[str]
     documents: List[Dict[str, str]]
-    individual_summaries: List[Dict[str, str]] # This line is added/updated
     report: str
+
+    # State for the persistent RAG system
+    topic_index_path: str  # Path to the created vector store for the topic
+    
+    # State for the Q&A phase
+    follow_up_question: str
+    follow_up_answer: str
 

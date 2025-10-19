@@ -1,28 +1,32 @@
 from langgraph.graph import StateGraph, END
 from src.state import ResearchState
-# Import the new node for individual summarization
-from src.graph.nodes import plan_queries, search_web, scrape_and_process, summarize_documents_individually, synthesize_report
+from src.graph.nodes import (
+    plan_queries, 
+    search_web, 
+    scrape_and_process, 
+    ingest_and_embed,
+    synthesize_initial_report
+)
 
-def build_graph():
-    """Builds the LangGraph research agent."""
+def build_research_graph():
+    """Builds the LangGraph for the initial research and ingestion phase."""
     workflow = StateGraph(ResearchState)
 
-    # Add all the agent nodes to the graph 1
+    # Add the nodes for the research pipeline
     workflow.add_node("planner", plan_queries)
     workflow.add_node("searcher", search_web)
     workflow.add_node("scraper", scrape_and_process)
-    workflow.add_node("summarizer", summarize_documents_individually) # The new summarizer step
-    workflow.add_node("synthesizer", synthesize_report)
+    workflow.add_node("ingester", ingest_and_embed)
+    workflow.add_node("reporter", synthesize_initial_report)
 
-    # Define the edges to connect the nodes in the correct order
+    # Define the edges that connect the nodes in a sequence
     workflow.set_entry_point("planner")
     workflow.add_edge("planner", "searcher")
     workflow.add_edge("searcher", "scraper")
-    workflow.add_edge("scraper", "summarizer") # Scraper now goes to the summarizer
-    workflow.add_edge("summarizer", "synthesizer") # Summarizer goes to the final synthesizer
-    workflow.add_edge("synthesizer", END)
+    workflow.add_edge("scraper", "ingester")
+    workflow.add_edge("ingester", "reporter")
+    workflow.add_edge("reporter", END)
 
-    # Compile the graph into a runnable application
-    app = workflow.compile()
-    return app
+    # Compile the workflow into a runnable application
+    return workflow.compile()
 
