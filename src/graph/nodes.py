@@ -1,4 +1,5 @@
 import os
+import time
 import google.generativeai as genai
 from dotenv import load_dotenv
 
@@ -12,8 +13,13 @@ try:
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
     if not GOOGLE_API_KEY:
         raise ValueError("GOOGLE_API_KEY not found.")
-    genai.configure(api_key=GOOGLE_API_KEY)
-    model = genai.GenerativeModel("gemini-1.5-flash-latest")
+    
+    # CHANGED: Force the library to use a standard REST connection
+    genai.configure(api_key=GOOGLE_API_KEY, transport="rest")
+
+    # Use a model confirmed to be available for your API key
+    model = genai.GenerativeModel("models/gemini-pro-latest")
+
 except Exception as e:
     print(f"Error configuring Google Gemini: {e}")
     model = None
@@ -21,18 +27,15 @@ except Exception as e:
 # --- AGENTS FOR INITIAL RESEARCH PHASE ---
 
 def plan_queries(state: ResearchState) -> ResearchState:
-    """Generates a list of search queries based on the research topic."""
     print("---PLANNING QUERIES---")
     if not model: raise ConnectionError("Model not configured.")
     topic = state["topic"]
     prompt = f"""You are a world-class research assistant. Based on the topic "{topic}", generate a list of 3-5 concise, targeted search queries."""
     response = model.generate_content(prompt)
-    # Basic parsing of a numbered list
     queries = [line.split(". ", 1)[1] for line in response.text.strip().split("\n") if ". " in line]
     return {"queries": queries}
 
 def search_web(state: ResearchState) -> ResearchState:
-    """Performs web searches for the given queries and returns a list of URLs."""
     print("---SEARCHING WEB---")
     if not tavily_search: raise ConnectionError("Tavily Tool not configured.")
     queries = state["queries"]
@@ -45,20 +48,17 @@ def search_web(state: ResearchState) -> ResearchState:
     return {"urls": unique_urls}
 
 def scrape_and_process(state: ResearchState) -> ResearchState:
-    """Scrapes the content from URLs, skipping non-HTML files."""
     print("---SCRAPING & PROCESSING---")
     urls = state["urls"]
     all_documents = []
     for url in urls:
-        if url.endswith((".pdf", ".docx", ".zip", ".pptx", ".xlsx")):
+        if url.endswith((".pdf", ".docx", ".zip")):
             print(f"--> Skipping non-HTML file: {url}")
             continue
         content = scrape_webpage(url)
         if not content.startswith("Error"):
             all_documents.append({"url": url, "content": content})
     return {"documents": all_documents}
-
-# --- NEW AGENT FOR BUILDING THE VECTOR DATABASE ---
 
 def ingest_and_embed(state: ResearchState) -> ResearchState:
     """Takes scraped documents, creates a vector store, and saves its path."""
@@ -76,12 +76,11 @@ def synthesize_initial_report(state: ResearchState) -> ResearchState:
     if not state["topic_index_path"]:
         return {"report": "Could not generate a report because no documents were successfully scraped and indexed."}
         
-    # Query the vector store for a broad context on the main topic
     context_docs = query_vector_store(topic, state["topic_index_path"])
     context_str = "\n\n---\n\n".join([f"Source ({doc.metadata['source']}):\n{doc.page_content}" for doc in context_docs])
     
-    prompt = f"""You are a professional research analyst. Based on the following documents, write a detailed and comprehensive research report on the topic: "{topic}".
-    The report should be well-structured, easy to read, and cover the key aspects of the topic based on the provided context.
+    prompt = f"""You are a research analyst. Based on the following documents, write a detailed, comprehensive research report on the topic: "{topic}".
+    The report should be well-structured and cover the key aspects of the topic.
     
     Documents:
     {context_str}
@@ -98,14 +97,12 @@ def answer_follow_up_question(state: ResearchState) -> ResearchState:
     print("---ANSWERING FOLLOW-UP QUESTION---")
     if not model: raise ConnectionError("Model not configured.")
     question = state["follow_up_question"]
-    
-    # Retrieve context relevant to the specific question
     context_docs = query_vector_store(question, state["topic_index_path"])
     context_str = "\n\n---\n\n".join([f"Source ({doc.metadata['source']}):\n{doc.page_content}" for doc in context_docs])
 
-    prompt = f"""Based *only* on the provided documents, give a direct and concise answer to the following question: "{question}"
+    prompt = f"""Based *only* on the provided documents, answer the following question: "{question}"
     
-    If the answer is not found in the documents, state that you cannot find the information based on the provided context. When possible, cite your sources using the format [Source URL].
+    If the answer is not in the documents, state that you cannot find the information based on the provided context. Cite your sources using [Source URL].
     
     Documents:
     {context_str}
