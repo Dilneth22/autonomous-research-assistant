@@ -11,7 +11,7 @@ from src.graph.nodes import answer_follow_up_question
 st.set_page_config(page_title="Hybrid RAG Agent", layout="wide")
 st.title("Hybrid Autonomous RAG Agent 🧠")
 
-# Initialize session state variables to manage the app's flow
+# Initialize session state variables to manage the app's
 if 'research_complete' not in st.session_state:
     st.session_state.research_complete = False
     st.session_state.full_report = ""
